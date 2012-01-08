@@ -1,5 +1,5 @@
 f=file("items.json")
-out=file("items_out.json","w+")
+#out=file("items_out.json","w+")
 results = []
 for item in f:
     str=item.decode("unicode_escape")
