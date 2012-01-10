@@ -1,5 +1,6 @@
 from scrapy.contrib.spiders import CrawlSpider, Rule
 from scrapy.http import Request
+from scrapy import log
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import HtmlXPathSelector
 
@@ -12,6 +13,7 @@ class DianpingSpider(CrawlSpider):
     name="dianping"
     allowed_domains=["dianping.com"]
     REVIEW_MAXROWS_PERPAGE = 20
+    log.start()
     
     start_urls=[
     "http://www.dianping.com/search/category/1/50/g157p1",
@@ -28,11 +30,15 @@ class DianpingSpider(CrawlSpider):
                     'parse_info',
                     follow=True,
                 ),
-    #next review page    http://www.dianping.com/shop/5192533/review_all?pageno=2
-            Rule(SgmlLinkExtractor(allow="/shop/\d+/review_all\?pageno=\d+$"),
-                        'parse_reviews',
-                        follow=True,
-                    ),    
+    #next review page    http://www.dianping.com/shop/5155229/review_more?pageno=
+        Rule(SgmlLinkExtractor(allow="/shop/\d+/review_more$"),
+            'parse_reviews',
+            follow=True,
+            ),  
+        Rule(SgmlLinkExtractor(allow="/shop/\d+/review_more\?pageno=\d+$"),
+             'parse_reviews',
+             follow=True,
+             ),                       
     )
 
     def __init__(self, name=None, **kwargs):
@@ -58,6 +64,7 @@ class DianpingSpider(CrawlSpider):
             item['stars'] = site.select("/descendant::span[contains(@class,'item-rank-rst')]/@title").extract()
         
             self.items_buffer[shopID] = item
+            log.msg("ken: yield link:%s"%self.base_url+shoplink)
             yield Request(url=self.base_url+shoplink, callback=self.parse_details)
 
 
@@ -79,20 +86,20 @@ class DianpingSpider(CrawlSpider):
         item['details_info'] = details_info
         item['comments'] = []
         
-        reviewlink = hxs.select("//div[@id='ctl00_PlaceHolderPage_dpcAllReviewHint']/a/@href").extract()
+        reviewlink = hxs.select("//ul[@class='cmt-filter']/li[@class='first']/span/a/@href[1]").extract()
+        log.msg("reviewlink type:%s"%type(reviewlink))
         if reviewlink:
-            reviewlink =re.search("([^#]+)",str(reviewlink)).groups()[0] #fetch all the review
-            yield Request(url=self.base_url+reviewlink, callback=self.parse_reviews)
+            log.msg("ken: yield link to each reviews %s"%reviewlink[0])
+            yield Request(url=self.base_url+reviewlink[0], callback=self.parse_reviews)
         else:
+            log.msg("ken not one reviews, return")
             del self.items_buffer[shopID]
-            #todo  add left items in current page
-            
             yield item             
             
     def parse_reviews(self, response):
+        #http://www.dianping.com/shop/5155229/review_more
         shopID = re.search("shop/(\d+)/", response.request.url).groups()[0]
-        print "ken=========parse_reviews"
-        print "shopiD:%s"%shopID
+        log.msg("ken in parse reviews, shopID:%s"%shopID)
         hxs = HtmlXPathSelector(response)
         reviews = hxs.select("//li[@class='comment-list-item']")  
         item = self.items_buffer[shopID] 
@@ -101,6 +108,10 @@ class DianpingSpider(CrawlSpider):
             content = review.select("descendant::text()").extract()
             review_contents.append(content)
         item['comments'].extend(review_contents)
-        if len(reviews) < REVIEW_MAXROWS_PERPAGE:
+        item['comments_count'] = len(item['comments'])
+        item['link'] = response.request.url
+        item['source'] = ['parse review']
+        if len(reviews) < DianpingSpider.REVIEW_MAXROWS_PERPAGE:
             del self.items_buffer[shopID]
             return item
+            

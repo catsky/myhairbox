@@ -25,3 +25,6 @@ class DianpingItem(Item):
     bus_info = Field()
     price_info = Field()
     comments = Field()
+    comments_count = Field()
+    link = Field()
+    source = Field()
