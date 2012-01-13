@@ -13,15 +13,15 @@ class DianpingSpider(CrawlSpider):
     name="dianping"
     allowed_domains=["dianping.com"]
     REVIEW_MAXROWS_PERPAGE = 20
+    THRESHOLD_PAGES = 20
     log.start()
     
     start_urls=[
-    "http://www.dianping.com/search/category/1/50/g157p1",
+    "http://www.dianping.com/search/category/1/50/g157n1/g50g157",
          ]
-
     rules = (
     #next page info
-        Rule(SgmlLinkExtractor(allow="/search/category/1/50/g157p\d*$"),
+        Rule(SgmlLinkExtractor(allow="/search/category/1/50/g157n1p\d*$"),
             'parse_info',
             follow=True,
         ),
@@ -30,12 +30,8 @@ class DianpingSpider(CrawlSpider):
                     'parse_info',
                     follow=True,
                 ),
-    #next review page    http://www.dianping.com/shop/5155229/review_more?pageno=
-        Rule(SgmlLinkExtractor(allow="/shop/\d+/review_more$"),
-            'parse_reviews',
-            follow=True,
-            ),  
-        Rule(SgmlLinkExtractor(allow="/shop/\d+/review_more\?pageno=\d+$"),
+    #only fetch 2 review page at most   http://www.dianping.com/shop/5155229/review_more?pageno=
+        Rule(SgmlLinkExtractor(allow="/shop/\d+/review_more\?pageno=2$"),
              'parse_reviews',
              follow=True,
              ),                       
@@ -54,7 +50,7 @@ class DianpingSpider(CrawlSpider):
         for site in sites:
             item = DianpingItem()
             item['name'] = site.select("descendant::li[@class='shopname']/a/text()").extract()
-            shoplink = site.select("descendant::li[@class='shopname']/a/@href").extract()
+            shoplink = site.select("descendant::li[@class='shopname']/a[1]/@href").extract()
             shoplink = shoplink[0]
             shopID = re.search("shopId=(\d+)#", shoplink).groups()[0]
           
@@ -85,7 +81,7 @@ class DianpingSpider(CrawlSpider):
         item['contact'] = contact
         item['details_info'] = details_info
         item['comments'] = []
-        
+        item['comments_count'] = 0
         reviewlink = hxs.select("//ul[@class='cmt-filter']/li[@class='first']/span/a/@href[1]").extract()
         log.msg("reviewlink type:%s"%type(reviewlink))
         if reviewlink:
@@ -108,10 +104,23 @@ class DianpingSpider(CrawlSpider):
             content = review.select("descendant::text()").extract()
             review_contents.append(content)
         item['comments'].extend(review_contents)
-        item['comments_count'] = len(item['comments'])
+        item['comments_count'] += len(review_contents)
         item['link'] = response.request.url
         item['source'] = ['parse review']
-        if len(reviews) < DianpingSpider.REVIEW_MAXROWS_PERPAGE:
+        
+        pagelinks = hxs.select("//div[@class='Pages']/a[@class='PageLink']/@href")
+        if item['comments_count'] > DianpingSpider.THRESHOLD_PAGES:
             del self.items_buffer[shopID]
-            return item
+            yield item        
+        elif len(pagelinks) >= 1:
+            yield Request(url=self.base_url+"/shop/"+shopID+"/review_more?pageno=2", callback=self.parse_reviews)
+        else:
+            del self.items_buffer[shopID]
+            yield item     
+     
+        log.msg("ken out of view withe link:%s"%response.request.url)
+        log.msg("ken out of view withe item:%s"%item)
+            
+            
+            
             
