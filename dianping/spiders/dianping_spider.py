@@ -57,7 +57,7 @@ class DianpingSpider(CrawlSpider):
 
             item['tag'] = site.select("descendant::li[@class='tags']/descendant::text()").extract()
             item['avgPrice'] = site.select("descendant::strong[@class='average']/text()").extract()
-            item['stars'] = site.select("/descendant::span[contains(@class,'item-rank-rst')]/@title").extract()
+            item['stars'] = site.select("descendant::span[contains(@class,'item-rank-rst')]/@title").extract()
         
             self.items_buffer[shopID] = item
             log.msg("ken: yield link:%s"%self.base_url+shoplink)
@@ -67,12 +67,12 @@ class DianpingSpider(CrawlSpider):
     def parse_details(self, response):
         shopID = re.search("shopId=(\d+)#", response.request.url).groups()[0]
         hxs = HtmlXPathSelector(response)
-        
+        item['link'] = response.request.url
         
         #address
         address = hxs.select("//dl[@class='shopDeal-Info-address']/descendant::text()").extract()
         #contact
-        contact = hxs.select("//dl[@class='shop-info-contact']/descendant::text()").extract()
+        contact = hxs.select("//div[@class='shop-info-inner Fix']/div[@class='desc-list']/dl[5]/dd/descendant::text()").extract()
         #details_info
         details_info = hxs.select("//div[contains(@class,'shop-detail-info')]/div[2]/descendant::text()").extract()
         
@@ -105,7 +105,6 @@ class DianpingSpider(CrawlSpider):
             review_contents.append(content)
         item['comments'].extend(review_contents)
         item['comments_count'] += len(review_contents)
-        item['link'] = response.request.url
         item['source'] = ['parse review']
         
         pagelinks = hxs.select("//div[@class='Pages']/a[@class='PageLink']/@href")
