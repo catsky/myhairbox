@@ -27,4 +27,3 @@ class DianpingItem(Item):
     comments = Field()
     comments_count = Field()
     link = Field()
-    source = Field()

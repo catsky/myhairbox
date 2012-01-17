@@ -67,7 +67,7 @@ class DianpingSpider(CrawlSpider):
     def parse_details(self, response):
         shopID = re.search("shopId=(\d+)#", response.request.url).groups()[0]
         hxs = HtmlXPathSelector(response)
-        item['link'] = response.request.url
+        
         
         #address
         address = hxs.select("//dl[@class='shopDeal-Info-address']/descendant::text()").extract()
@@ -77,9 +77,10 @@ class DianpingSpider(CrawlSpider):
         details_info = hxs.select("//div[contains(@class,'shop-detail-info')]/div[2]/descendant::text()").extract()
         
         item = self.items_buffer[shopID]
-        item['address'] = address
-        item['contact'] = contact
-        item['details_info'] = details_info
+        item['link'] = response.request.url
+        item['address'] = [t for t in address if re.search("[\t\n\r]{2,99}", t) is None] 
+        item['contact'] = [t for t in contact if re.search("[\t\n\r]{2,99}", t) is None] 
+        item['details_info'] = [t for t in details_info if re.search("[\t\n\r]{2,99}", t) is None]
         item['comments'] = []
         item['comments_count'] = 0
         reviewlink = hxs.select("//ul[@class='cmt-filter']/li[@class='first']/span/a/@href[1]").extract()
@@ -105,7 +106,6 @@ class DianpingSpider(CrawlSpider):
             review_contents.append(content)
         item['comments'].extend(review_contents)
         item['comments_count'] += len(review_contents)
-        item['source'] = ['parse review']
         
         pagelinks = hxs.select("//div[@class='Pages']/a[@class='PageLink']/@href")
         if item['comments_count'] > DianpingSpider.THRESHOLD_PAGES:
