@@ -78,9 +78,9 @@ class DianpingSpider(CrawlSpider):
         
         item = self.items_buffer[shopID]
         item['link'] = response.request.url
-        item['address'] = [t for t in address if re.search("[\t\n\r]{2,99}", t) is None] 
-        item['contact'] = [t for t in contact if re.search("[\t\n\r]{2,99}", t) is None] 
-        item['details_info'] = [t for t in details_info if re.search("[\t\n\r]{2,99}", t) is None]
+        item['address'] = [t for t in address if re.search("[\t\n\r]+", t) is None] 
+        item['contact'] = [t for t in contact if re.search("[\t\n\r]+", t) is None] 
+        item['details_info'] = [t for t in details_info if re.search("[\t\n\r]+", t) is None]
         item['comments'] = []
         item['comments_count'] = 0
         reviewlink = hxs.select("//ul[@class='cmt-filter']/li[@class='first']/span/a/@href[1]").extract()
@@ -103,6 +103,7 @@ class DianpingSpider(CrawlSpider):
         review_contents = []   
         for review in reviews:
             content = review.select("descendant::text()").extract()
+            content = [t for t in content if re.search("[\t\n\r]+", t) is None]
             review_contents.append(content)
         item['comments'].extend(review_contents)
         item['comments_count'] += len(review_contents)
@@ -110,11 +111,13 @@ class DianpingSpider(CrawlSpider):
         pagelinks = hxs.select("//div[@class='Pages']/a[@class='PageLink']/@href")
         if item['comments_count'] > DianpingSpider.THRESHOLD_PAGES:
             del self.items_buffer[shopID]
+            item['comments'] = item['comments'][:4]
             yield item        
         elif len(pagelinks) >= 1:
             yield Request(url=self.base_url+"/shop/"+shopID+"/review_more?pageno=2", callback=self.parse_reviews)
         else:
             del self.items_buffer[shopID]
+            item['comments'] = item['comments'][:4]
             yield item     
      
         log.msg("ken out of view withe link:%s"%response.request.url)

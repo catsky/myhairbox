@@ -1,11 +1,17 @@
+# -*- coding: utf-8 -*-
 import MySQLdb
 
-conn = MySQLdb.connect(host='localhost', user='root', passwd='1234')
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
+
+conn = MySQLdb.connect(host='localhost', user='root', passwd='1234',charset="utf8")
 
 cursor=conn.cursor()
 
 cursor.execute("drop database if exists myhairbox")
-cursor.execute("create database if not exists myhairbox")
+cursor.execute("create database if not exists myhairbox DEFAULT CHARSET=utf8")
 
 conn.select_db('myhairbox')
 cursor.execute("""CREATE TABLE IF NOT EXISTS `dianping` (
@@ -26,7 +32,7 @@ cursor.execute("""CREATE TABLE IF NOT EXISTS `dianping` (
   `comments_count` varchar(20) CHARACTER SET utf8 NOT NULL,
   `link` varchar(100) CHARACTER SET utf8 NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=2 ;""")
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=2 ;""")
 #insert values
 
 name = ""
@@ -34,6 +40,7 @@ tag = ""
 avgPrice = ""
 stars = ""
 address = ""
+contact = ""
 alias = ""
 details_info = ""
 recommand_dressor = ""
@@ -49,46 +56,54 @@ link = ""
 f=file("items.json")
 #out=file("items_out.json","w+")
 results = []
+count = 1
 for item in f:
+    print "processing %s line"%count
+    count += 1
     #eval to the real dict
     item = item.decode("unicode_escape")
+    
+    #print "item:ken: %s"%item
+
     item =  eval(item) 
     for key in item:
-        print key
         if key == "name":
-            name = item[key]
+            name = ','.join(item[key])
         elif key == "tag":
-            tag = item[key]
+            tag = ','.join(item[key])
         elif key == "avgPrice":
             avgPrice = item[key]
         elif key == "stars":
-            stars = item[key]
+            stars = ','.join(item[key])
         elif key == "address":
-            address = item[key]
+            address = ''.join(item[key])
         elif key == "alias":
-            alias = item[key]
+            alias = ''.join(item[key])
         elif key == "details_info":
-            details_info = item[key]
+            details_info = ''.join(item[key])
         elif key == "recommand_dressor":
-            recommand_dressor = item[key]
+            recommand_dressor = ','.join(item[key])
         elif key == "service_time":
-            service_time = item[key]
+            service_time = ''.join(item[key])
         elif key == "bus_info":
-            bus_info = item[key]
+            bus_info = ''.join(item[key])
         elif key == "price_info":
-            price_info = item[key]
+            price_info = ''.join(item[key])
         elif key == "comments":
-            comments = item[key]
+            comm = ''
+            for s in item[key]:
+                comm += ''.join(s)
+            comments = comm
+            #comments = ''.join(str(item[key]).decode("utf-8"))
         elif key == "comments_count":
-            comments_count = int(item[key])
+            comments_count = item[key]
         elif key == "link":
             link = item[key]
-    value=[name,tag,avgPrice,stars,address,alias,details_info,
+    value=[name,tag,avgPrice,stars,address,contact, alias,details_info,
             recommand_dressor,service_time,bus_info,price_info,
             comments,comments_count,link]
-    print value
-    cursor.execute("""insert into dianping(name,tag,avgPrice,stars,address,alias,
+    cursor.execute("""insert into dianping(name,tag,avgPrice,stars,address,contact,alias,
         details_info,recommand_dressor,service_time,bus_info,price_info,comments,
-        comments_count,link) values("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s")""", value)
+        comments_count,link) values("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s")""", value)
 
 cursor.close()
